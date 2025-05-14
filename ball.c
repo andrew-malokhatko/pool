@@ -8,7 +8,7 @@ Ball ball_init(int x, int y, float mass, float radius)
     ball.y = y;
     ball.mass = mass;
 
-    int randomRed = rand() % 200;
+    int randomRed = rand() % 200 +  55;
     ball.circle = (Circle){{x, y}, radius, {randomRed, 0.2f, 0.6f}};
 
     ball.velocity = (Vector2){0, 0};
@@ -119,4 +119,18 @@ bool handle_collisions(Ball* ball1, Ball* ball2)
     ball2->y += overlap / 2 * normal.y;
 
     return true;
+}
+
+bool ball_collides_point(Ball* ball, Vector2 point)
+{
+    float dx = point.x - ball->x;
+    float dy = point.y - ball->y;
+    float distance = sqrt(dx * dx + dy * dy);
+
+    if (distance < ball->circle.radius)
+    {
+        return true;
+    }
+    
+    return false;
 }

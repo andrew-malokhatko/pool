@@ -9,23 +9,20 @@
 #include <GL/glut.h>
 
 
-const double WINDOW_WIDTH = 900;
+// Window size
+const double WINDOW_WIDTH = 1600;
 const double WINDOW_HEIGHT = 900;
 
-
-// constants & stuff
-float speed = 250;
-float projectile_speed = 600;
-int radius = 100;
-float gravity = 70;
-int projectile_mass = 3;
-bool gameOver = false;
-
-
+// Game variables
 List balls = {NULL, 0, 0};
 
-Ball ball1;
-Ball ball2;
+// constants & stuff
+const int radius = 50;
+
+// mouse state 
+bool isDragging = false;
+Ball* selectedBall = NULL;
+Vector2 currentMousePos = {-1, -1};
 
 // Key states
 bool keyA = false;
@@ -39,7 +36,6 @@ void reshapeWindow(int width, int height)
 
     glLoadIdentity();
 
-    //gluOrtho2D(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT);
     gluOrtho2D(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT);
 } 
 
@@ -50,6 +46,7 @@ void draw()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+    // draw balls
     ListNode* current = balls.head;
     while (current)
     {
@@ -57,6 +54,17 @@ void draw()
         ball_draw(ball);
 
         current = current->next;
+    }
+
+    // draw mouse
+    if (isDragging && selectedBall)
+    {
+        glColor3f(0.0f, 1.0f, 1.0f);
+        glLineWidth(3.0f);
+        glBegin(GL_LINES);
+        glVertex2f(selectedBall->x, selectedBall->y);
+        glVertex2f(currentMousePos.x, currentMousePos.y);
+        glEnd();
     }
 
     glutSwapBuffers();
@@ -79,23 +87,65 @@ void handleKeyboardUp(unsigned char key, int x, int y)
 // On mouse clicked
 void mouseClick(int button, int state, int x, int y)
 {
-    y = WINDOW_HEIGHT - y; // Invert y coordinate
-    Vector2 mousePos = {x, y};
-
+    // Invert y coordinate
+    y = WINDOW_HEIGHT - y;
+    
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) 
     {
+        Vector2 mouseDownPos = (Vector2){x, y};
+
+        ListNode* current = balls.head;
+        while (current)
+        {
+            Ball* ball = (Ball*)current->data;
+
+            if (ball_collides_point(ball, mouseDownPos))
+            {
+                selectedBall = ball;
+                break;
+            }
+
+            current = current->next;
+        }
         
+        // if no ball was selected, set selectedBall to NULL
+        if (current == NULL)
+        {
+            selectedBall = NULL;
+            return;
+        }
+
+        isDragging = true;
     }
+
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+    {
+        if (!selectedBall)
+        {
+            return;
+        }
+
+        Vector2 mouseUpPos = (Vector2){x, y};
+        Vector2 impulse = {selectedBall->x - mouseUpPos.x, selectedBall->y - mouseUpPos.y};
+
+        if (selectedBall)
+        {
+            ball_set_velocity(selectedBall, impulse.x, impulse.y);
+        }
+
+        isDragging = false;
+    }
+}
+
+void mouseMotion(int x, int y)
+{
+    y = WINDOW_HEIGHT - y;
+    currentMousePos = (Vector2){x, y};
 }
 
 
 void update(int deltaTime)
 {
-    if (gameOver)
-    {
-        return;
-    }
-
     float dt = (float)deltaTime / 1000;
 
     ListNode* current = balls.head;
@@ -108,6 +158,8 @@ void update(int deltaTime)
         current = current->next;
     }
     
+    // POTENTIAL MISTAKES, NOT ALL COLLISIONS ARE HANDLED PROPERLY!!!!
+    // BUT WORKS FOR 2 BALLS
     current = balls.head;
     while (current->next)
     {
@@ -125,14 +177,11 @@ void update(int deltaTime)
 }
 
 int main(int argc, char** argv)
-{
+{   
     srand(time(NULL));
 
-    ball1 = ball_init(400, 100, 10, radius);
-    ball_set_velocity(&ball1, 150, 150);
-
-    ball2 = ball_init(100, 100, 10, radius);
-    ball_set_velocity(&ball2, -150, 200);
+    Ball ball1 = ball_init(400, 400, 10, radius);
+    Ball ball2 = ball_init(100, 100, 10, radius);
 
     balls = list_init(sizeof(Ball));
     list_add(&balls, &ball1);
@@ -157,6 +206,7 @@ int main(int argc, char** argv)
 
     // Mouse callbacks
     glutMouseFunc(mouseClick);
+    glutMotionFunc(mouseMotion);
 
     glutMainLoop();
 }
